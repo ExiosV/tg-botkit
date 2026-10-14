@@ -1,0 +1,19 @@
+[project]
+name = "tg-botkit"
+version = "0.1.0"
+description = "Shared Telegram Bot API client for the ExiosV tg-* projects"
+requires-python = ">=3.9"
+dependencies = ["requests>=2.31"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
