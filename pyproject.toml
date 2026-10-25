@@ -1,6 +1,6 @@
 [project]
 name = "tg-botkit"
-version = "0.1.0"
+version = "0.2.0"
 license = {text = "Apache-2.0"}
 description = "Shared Telegram Bot API client for the ExiosV tg-* projects"
 requires-python = ">=3.9"
