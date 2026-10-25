@@ -24,16 +24,18 @@ pages = tg.get_page_list(limit=100)
 
 `TelegramError` subclasses `RuntimeError` (`.status`, `.description`), so old `except RuntimeError` code keeps working.
 
-## Use in a project (vendoring)
-App images are built on devicex2 without a registry and without credentials, so a private git dependency cannot be
-installed in the Dockerfile. Each project commits a copy instead:
+## Use in a project
 
-```bash
-cd tg-botkit && scripts/vendor.sh ../tg-propertyfate   # writes src/tg_botkit/ (+ VENDORED.txt)
+The repo is public, so a project pins a tag in `pyproject.toml` and pip fetches the GitHub tarball (no git, no
+credentials, works in the Docker builds on devicex2):
+
+```toml
+dependencies = ["tg-botkit @ https://github.com/ExiosV/tg-botkit/archive/refs/tags/v0.2.0.tar.gz", ...]
 ```
 
-The project's setuptools `packages.find` (`where = ["src"]`) then ships it; add `requests` to its dependencies. To
-change the client edit **this** repo, bump `__version__`, rerun `vendor.sh` in every project (PR per project).
+To change the client edit **this** repo, bump `__version__` + `pyproject.toml`, merge, tag `vX.Y.Z`, then bump the tag
+in each consumer (PR per project). `scripts/vendor.sh` is kept only for a consumer that cannot reach GitHub at build
+time; do not vendor otherwise.
 
 ## Dev
 `pip install -e '.[dev]' && pytest`
