@@ -31,3 +31,7 @@ change the client edit **this** repo, bump `__version__`, rerun `vendor.sh` in e
 
 ## Dev
 `pip install -e '.[dev]' && pytest`
+
+## License
+
+Apache-2.0, see LICENSE.
