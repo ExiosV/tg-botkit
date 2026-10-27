@@ -47,6 +47,10 @@ def use(monkeypatch, script):
     return f
 
 
+def reply_params(data):
+    return json.loads(data["reply_parameters"])
+
+
 def test_429_is_retried(monkeypatch, bot):
     f = use(monkeypatch, {"getMe": [Resp({"ok": False, "parameters": {"retry_after": 1}}, 429), ok({"id": 1})]})
     assert bot.whoami() == {"id": 1} and len(f.calls) == 2
@@ -90,6 +94,38 @@ def test_photos_falls_back_to_text(monkeypatch, bot):
     assert bot.photos("cap", ["a"]) == 3
 
 
+def test_photos_reply_to_on_album_and_single(monkeypatch, bot):
+    f = use(monkeypatch, {"sendMediaGroup": [ok([{"message_id": 11}, {"message_id": 12}])],
+                          "sendPhoto": [ok({"message_id": 3})]})
+    assert bot.photos("cap", ["a", "b"], reply_to=5) == 11
+    assert reply_params(f.calls[0][1]) == {"message_id": 5, "allow_sending_without_reply": True}
+    assert "reply_to_message_id" not in f.calls[0][1]
+    assert bot.photos("cap", ["a"], reply_to=6) == 3
+    assert reply_params(f.calls[1][1]) == {"message_id": 6, "allow_sending_without_reply": True}
+    assert "reply_to_message_id" not in f.calls[1][1]
+
+
+def test_photos_without_reply_to_omits_field(monkeypatch, bot):
+    f = use(monkeypatch, {"sendMediaGroup": [ok([{"message_id": 11}, {"message_id": 12}])],
+                          "sendPhoto": [ok({"message_id": 3})]})
+    bot.photos("cap", ["a", "b"])
+    bot.photos("cap", ["a"])
+    for call in f.calls[:2]:
+        assert "reply_parameters" not in call[1]
+        assert "reply_to_message_id" not in call[1]
+
+
+def test_photos_fallback_keeps_reply_to(monkeypatch, bot):
+    f = use(monkeypatch, {"sendPhoto": [err("Bad Request: failed to get HTTP URL content")],
+                          "sendMessage": [ok({"message_id": 3})]})
+    bot.photos("cap", ["a"], reply_to=5)
+    assert reply_params(f.calls[1][1]) == {"message_id": 5, "allow_sending_without_reply": True}
+    assert "reply_to_message_id" not in f.calls[1][1]
+    bot.photos("cap", ["a"])
+    assert "reply_parameters" not in f.calls[3][1]
+    assert "reply_to_message_id" not in f.calls[3][1]
+
+
 def test_edit_photo_caption_after_text_refusal(monkeypatch, bot):
     f = use(monkeypatch, {"editMessageText": [err("Bad Request: there is no text in the message to edit")],
                           "editMessageCaption": [ok(True)]})
@@ -111,6 +147,22 @@ def test_group_chunks_by_ten(monkeypatch, bot):
     f = use(monkeypatch, {"sendMediaGroup": [ok([{"message_id": i} for i in range(10)])], "sendDocument": [ok({"message_id": 99})]})
     ids = bot.group("document", [(f"f{i}", b"x") for i in range(11)], caption="c")
     assert [c[0] for c in f.calls] == ["sendMediaGroup", "sendDocument"] and ids[-1] == 99
+
+
+def test_group_reply_to_on_every_chunk(monkeypatch, bot):
+    f = use(monkeypatch, {"sendMediaGroup": [ok([{"message_id": i} for i in range(10)])], "sendDocument": [ok({"message_id": 99})]})
+    bot.group("document", [(f"f{i}", b"x") for i in range(11)], reply_to=5)
+    assert [reply_params(c[1]) for c in f.calls] == [
+        {"message_id": 5, "allow_sending_without_reply": True},
+        {"message_id": 5, "allow_sending_without_reply": True}]
+    assert all("reply_to_message_id" not in c[1] for c in f.calls)
+
+
+def test_group_without_reply_to_omits_field(monkeypatch, bot):
+    f = use(monkeypatch, {"sendMediaGroup": [ok([{"message_id": i} for i in range(10)])], "sendDocument": [ok({"message_id": 99})]})
+    bot.group("document", [(f"f{i}", b"x") for i in range(11)])
+    assert [c[0] for c in f.calls] == ["sendMediaGroup", "sendDocument"]
+    assert all("reply_parameters" not in c[1] and "reply_to_message_id" not in c[1] for c in f.calls)
 
 
 def test_no_chat_raises():

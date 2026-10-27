@@ -15,6 +15,11 @@ bot.group("document", [("a.pdf", fh)])   # uploads, 10 per media group
 bot.updates(offset)                      # long poll;  bot.download(file_id, path)
 missing_secrets(["TELEGRAM_BOT_TOKEN"])  # names unset or still CHANGEME
 
+# photos()/group() as a reply: comment under a channel post
+# chat_id = the linked discussion group; reply_to = id of the post's auto-forwarded copy there (is_automatic_forward), not the channel post id
+bot.photos("<b>caption</b>", [url1, url2], chat_id=discussion_id, reply_to=forwarded_mid)
+bot.group("photo", [("a.jpg", fh)], chat_id=discussion_id, reply_to=forwarded_mid)
+
 # Telegraph (telegra.ph) publishing
 tg = Telegraph(access_token="...")
 url = tg.create_page("Title", "<p>HTML or <b>nodes</b></p>")["url"]
@@ -24,13 +29,17 @@ pages = tg.get_page_list(limit=100)
 
 `TelegramError` subclasses `RuntimeError` (`.status`, `.description`), so old `except RuntimeError` code keeps working.
 
+With `reply_to` set, `photos()` and `group()` send the Bot API 7.0+ `reply_parameters` object (including
+`allow_sending_without_reply`, so a deleted target does not fail the call); `send()`/`reply()` keep the legacy
+`reply_to_message_id`. When `reply_to` is None neither field is sent.
+
 ## Use in a project
 
 The repo is public, so a project pins a tag in `pyproject.toml` and pip fetches the GitHub tarball (no git, no
 credentials, works in the Docker builds on devicex2):
 
 ```toml
-dependencies = ["tg-botkit @ https://github.com/ExiosV/tg-botkit/archive/refs/tags/v0.2.0.tar.gz", ...]
+dependencies = ["tg-botkit @ https://github.com/ExiosV/tg-botkit/archive/refs/tags/v0.3.0.tar.gz", ...]
 ```
 
 To change the client edit **this** repo, bump `__version__` + `pyproject.toml`, merge, tag `vX.Y.Z`, then bump the tag
@@ -41,6 +50,13 @@ time; do not vendor otherwise.
 `pip install -e '.[dev]' && pytest`
 
 ## Changelog
+
+### 0.3.0
+- `photos()` and `group()` accept an optional `reply_to` message id, so a photo/album/media group can answer a
+  message inside a channel discussion thread
+- They send it as the Bot API 7.0+ `reply_parameters` object with `allow_sending_without_reply` true, so a deleted
+  reply target does not fail the whole call, including the `photos()` text fallback; the field is omitted when
+  `reply_to` is None. `send()`/`reply()` keep the legacy `reply_to_message_id`
 
 ### 0.2.0
 - Added `Telegraph` client for telegra.ph API (create/edit pages, get page list)
