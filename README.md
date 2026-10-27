@@ -29,6 +29,10 @@ pages = tg.get_page_list(limit=100)
 
 `TelegramError` subclasses `RuntimeError` (`.status`, `.description`), so old `except RuntimeError` code keeps working.
 
+With `reply_to` set, `photos()` and `group()` send the Bot API 7.0+ `reply_parameters` object (including
+`allow_sending_without_reply`, so a deleted target does not fail the call); `send()`/`reply()` keep the legacy
+`reply_to_message_id`. When `reply_to` is None neither field is sent.
+
 ## Use in a project
 
 The repo is public, so a project pins a tag in `pyproject.toml` and pip fetches the GitHub tarball (no git, no
@@ -49,9 +53,10 @@ time; do not vendor otherwise.
 
 ### 0.3.0
 - `photos()` and `group()` accept an optional `reply_to` message id, so a photo/album/media group can answer a
-  message inside a channel discussion thread (same `reply_to_message_id` field as `send()`)
-- With `reply_to` set they also send `allow_sending_without_reply=true`, so a deleted reply target does not fail the
-  whole call; the field is omitted when `reply_to` is None
+  message inside a channel discussion thread
+- They send it as the Bot API 7.0+ `reply_parameters` object with `allow_sending_without_reply` true, so a deleted
+  reply target does not fail the whole call, including the `photos()` text fallback; the field is omitted when
+  `reply_to` is None. `send()`/`reply()` keep the legacy `reply_to_message_id`
 
 ### 0.2.0
 - Added `Telegraph` client for telegra.ph API (create/edit pages, get page list)

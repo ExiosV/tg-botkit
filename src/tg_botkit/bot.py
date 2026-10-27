@@ -22,6 +22,13 @@ def _silent(flag: bool) -> str:
     return "true" if flag else "false"
 
 
+def _reply_params(reply_to: Optional[int]) -> Optional[str]:
+    """Bot API 7.0+ `reply_parameters` JSON: answer `message_id`, do not fail if that message was deleted."""
+    if not reply_to:
+        return None
+    return json.dumps({"message_id": reply_to, "allow_sending_without_reply": True})
+
+
 class Bot:
     """Thin client for a (local) Bot API server. `channel` is the default chat for every send/edit helper."""
 
@@ -66,12 +73,12 @@ class Bot:
 
     # -- send ----------------------------------------------------------------------------------------------------
     def send(self, text: str, chat_id=None, reply_to: Optional[int] = None, silent: bool = False,
-             preview: bool = False, html: bool = True, allow_sending_without_reply: bool = False) -> int:
+             preview: bool = False, html: bool = True, reply_parameters: Optional[str] = None) -> int:
         """Send text; when Telegram rejects the HTML markup (400) it is resent as plain text. Returns the message id.
-        `allow_sending_without_reply` adds the same-named Bot API flag, so a deleted `reply_to` target does not fail."""
-        extra = {"reply_to_message_id": reply_to} if reply_to else {}
-        if reply_to and allow_sending_without_reply:
-            extra["allow_sending_without_reply"] = "true"
+        `reply_to` uses the legacy `reply_to_message_id`; `reply_parameters` passes a pre-built Bot API 7.0+ reply
+        object instead (used by `photos()`'s text fallback)."""
+        extra = {"reply_parameters": reply_parameters} if reply_parameters else (
+            {"reply_to_message_id": reply_to} if reply_to else {})
         common = dict(chat_id=self._chat(chat_id), disable_notification=_silent(silent), **extra)
         if html:
             try:
@@ -90,7 +97,8 @@ class Bot:
                reply_to: Optional[int] = None) -> int:
         """1-10 photos by URL or file_id as one post, the caption on the first. If Telegram cannot fetch an image
         the post falls back to plain text. `reply_to` answers that message. Returns the id of the first message."""
-        extra = {"reply_to_message_id": reply_to, "allow_sending_without_reply": "true"} if reply_to else {}
+        reply_parameters = _reply_params(reply_to)
+        extra = {"reply_parameters": reply_parameters} if reply_parameters else {}
         common = dict(chat_id=self._chat(chat_id), disable_notification=_silent(silent), **extra)
         try:
             if len(photos) >= 2:
@@ -101,8 +109,7 @@ class Bot:
                 return self.call("sendPhoto", photo=photos[0], caption=caption, parse_mode="HTML", **common)["message_id"]
         except TelegramError as e:
             log.warning("photo post failed (%s), falling back to text", e)
-        return self.send(caption, chat_id=chat_id, reply_to=reply_to, silent=silent, preview=True,
-                         allow_sending_without_reply=reply_to is not None)
+        return self.send(caption, chat_id=chat_id, silent=silent, preview=True, reply_parameters=reply_parameters)
 
     def group(self, kind: str, items: List[Tuple[str, object]], caption: str = "", silent: bool = False,
               chat_id=None, timeout: int = 600, reply_to: Optional[int] = None) -> List[int]:
@@ -110,7 +117,7 @@ class Bot:
         `items` = (file name, bytes or open file). The caption rides on the first item, `reply_to` answers that
         message. Returns all message ids."""
         chat = self._chat(chat_id)
-        extra = {"reply_to_message_id": reply_to, "allow_sending_without_reply": "true"} if reply_to else {}
+        extra = {"reply_parameters": _reply_params(reply_to)} if reply_to else {}
         ids: List[int] = []
         for n in range(0, len(items), 10):
             chunk = items[n:n + 10]
