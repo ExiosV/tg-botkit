@@ -95,14 +95,17 @@ def test_photos_reply_to_on_album_and_single(monkeypatch, bot):
                           "sendPhoto": [ok({"message_id": 3})]})
     assert bot.photos("cap", ["a", "b"], reply_to=5) == 11
     assert f.calls[0][1]["reply_to_message_id"] == 5
+    assert f.calls[0][1]["allow_sending_without_reply"] == "true"
     assert bot.photos("cap", ["a"], reply_to=6) == 3
     assert f.calls[1][1]["reply_to_message_id"] == 6
+    assert f.calls[1][1]["allow_sending_without_reply"] == "true"
 
 
 def test_photos_without_reply_to_omits_field(monkeypatch, bot):
     f = use(monkeypatch, {"sendMediaGroup": [ok([{"message_id": 11}, {"message_id": 12}])]})
     bot.photos("cap", ["a", "b"])
     assert "reply_to_message_id" not in f.calls[0][1]
+    assert "allow_sending_without_reply" not in f.calls[0][1]
 
 
 def test_photos_fallback_keeps_reply_to(monkeypatch, bot):
@@ -139,12 +142,14 @@ def test_group_reply_to_on_every_chunk(monkeypatch, bot):
     f = use(monkeypatch, {"sendMediaGroup": [ok([{"message_id": i} for i in range(10)])], "sendDocument": [ok({"message_id": 99})]})
     bot.group("document", [(f"f{i}", b"x") for i in range(11)], reply_to=5)
     assert [c[1]["reply_to_message_id"] for c in f.calls] == [5, 5]
+    assert [c[1]["allow_sending_without_reply"] for c in f.calls] == ["true", "true"]
 
 
 def test_group_without_reply_to_omits_field(monkeypatch, bot):
-    f = use(monkeypatch, {"sendMediaGroup": [ok([{"message_id": i} for i in range(2)])]})
-    bot.group("document", [("a", b"x"), ("b", b"y")])
-    assert "reply_to_message_id" not in f.calls[0][1]
+    f = use(monkeypatch, {"sendMediaGroup": [ok([{"message_id": i} for i in range(10)])], "sendDocument": [ok({"message_id": 99})]})
+    bot.group("document", [(f"f{i}", b"x") for i in range(11)])
+    assert [c[0] for c in f.calls] == ["sendMediaGroup", "sendDocument"]
+    assert all("reply_to_message_id" not in c[1] and "allow_sending_without_reply" not in c[1] for c in f.calls)
 
 
 def test_no_chat_raises():

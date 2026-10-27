@@ -87,7 +87,7 @@ class Bot:
                reply_to: Optional[int] = None) -> int:
         """1-10 photos by URL or file_id as one post, the caption on the first. If Telegram cannot fetch an image
         the post falls back to plain text. `reply_to` answers that message. Returns the id of the first message."""
-        extra = {"reply_to_message_id": reply_to} if reply_to else {}
+        extra = {"reply_to_message_id": reply_to, "allow_sending_without_reply": "true"} if reply_to else {}
         common = dict(chat_id=self._chat(chat_id), disable_notification=_silent(silent), **extra)
         try:
             if len(photos) >= 2:
@@ -106,7 +106,7 @@ class Bot:
         `items` = (file name, bytes or open file). The caption rides on the first item, `reply_to` answers that
         message. Returns all message ids."""
         chat = self._chat(chat_id)
-        extra = {"reply_to_message_id": reply_to} if reply_to else {}
+        extra = {"reply_to_message_id": reply_to, "allow_sending_without_reply": "true"} if reply_to else {}
         ids: List[int] = []
         for n in range(0, len(items), 10):
             chunk = items[n:n + 10]

@@ -15,6 +15,11 @@ bot.group("document", [("a.pdf", fh)])   # uploads, 10 per media group
 bot.updates(offset)                      # long poll;  bot.download(file_id, path)
 missing_secrets(["TELEGRAM_BOT_TOKEN"])  # names unset or still CHANGEME
 
+# photos()/group() as a reply: comment under a channel post
+# chat_id = the linked discussion group; reply_to = id of the post's auto-forwarded copy there (is_automatic_forward), not the channel post id
+bot.photos("<b>caption</b>", [url1, url2], chat_id=discussion_id, reply_to=forwarded_mid)
+bot.group("photo", [("a.jpg", fh)], chat_id=discussion_id, reply_to=forwarded_mid)
+
 # Telegraph (telegra.ph) publishing
 tg = Telegraph(access_token="...")
 url = tg.create_page("Title", "<p>HTML or <b>nodes</b></p>")["url"]
@@ -30,7 +35,7 @@ The repo is public, so a project pins a tag in `pyproject.toml` and pip fetches 
 credentials, works in the Docker builds on devicex2):
 
 ```toml
-dependencies = ["tg-botkit @ https://github.com/ExiosV/tg-botkit/archive/refs/tags/v0.2.0.tar.gz", ...]
+dependencies = ["tg-botkit @ https://github.com/ExiosV/tg-botkit/archive/refs/tags/v0.3.0.tar.gz", ...]
 ```
 
 To change the client edit **this** repo, bump `__version__` + `pyproject.toml`, merge, tag `vX.Y.Z`, then bump the tag
@@ -45,6 +50,8 @@ time; do not vendor otherwise.
 ### 0.3.0
 - `photos()` and `group()` accept an optional `reply_to` message id, so a photo/album/media group can answer a
   message inside a channel discussion thread (same `reply_to_message_id` field as `send()`)
+- With `reply_to` set they also send `allow_sending_without_reply=true`, so a deleted reply target does not fail the
+  whole call; the field is omitted when `reply_to` is None
 
 ### 0.2.0
 - Added `Telegraph` client for telegra.ph API (create/edit pages, get page list)
