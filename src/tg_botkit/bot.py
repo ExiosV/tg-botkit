@@ -66,9 +66,12 @@ class Bot:
 
     # -- send ----------------------------------------------------------------------------------------------------
     def send(self, text: str, chat_id=None, reply_to: Optional[int] = None, silent: bool = False,
-             preview: bool = False, html: bool = True) -> int:
-        """Send text; when Telegram rejects the HTML markup (400) it is resent as plain text. Returns the message id."""
+             preview: bool = False, html: bool = True, allow_sending_without_reply: bool = False) -> int:
+        """Send text; when Telegram rejects the HTML markup (400) it is resent as plain text. Returns the message id.
+        `allow_sending_without_reply` adds the same-named Bot API flag, so a deleted `reply_to` target does not fail."""
         extra = {"reply_to_message_id": reply_to} if reply_to else {}
+        if reply_to and allow_sending_without_reply:
+            extra["allow_sending_without_reply"] = "true"
         common = dict(chat_id=self._chat(chat_id), disable_notification=_silent(silent), **extra)
         if html:
             try:
@@ -98,7 +101,8 @@ class Bot:
                 return self.call("sendPhoto", photo=photos[0], caption=caption, parse_mode="HTML", **common)["message_id"]
         except TelegramError as e:
             log.warning("photo post failed (%s), falling back to text", e)
-        return self.send(caption, chat_id=chat_id, reply_to=reply_to, silent=silent, preview=True)
+        return self.send(caption, chat_id=chat_id, reply_to=reply_to, silent=silent, preview=True,
+                         allow_sending_without_reply=reply_to is not None)
 
     def group(self, kind: str, items: List[Tuple[str, object]], caption: str = "", silent: bool = False,
               chat_id=None, timeout: int = 600, reply_to: Optional[int] = None) -> List[int]:

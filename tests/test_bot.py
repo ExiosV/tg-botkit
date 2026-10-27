@@ -113,6 +113,10 @@ def test_photos_fallback_keeps_reply_to(monkeypatch, bot):
                           "sendMessage": [ok({"message_id": 3})]})
     bot.photos("cap", ["a"], reply_to=5)
     assert f.calls[1][1]["reply_to_message_id"] == 5
+    assert f.calls[1][1]["allow_sending_without_reply"] == "true"
+    bot.photos("cap", ["a"])
+    assert "reply_to_message_id" not in f.calls[3][1]
+    assert "allow_sending_without_reply" not in f.calls[3][1]
 
 
 def test_edit_photo_caption_after_text_refusal(monkeypatch, bot):
