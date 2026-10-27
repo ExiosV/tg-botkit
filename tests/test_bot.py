@@ -90,6 +90,28 @@ def test_photos_falls_back_to_text(monkeypatch, bot):
     assert bot.photos("cap", ["a"]) == 3
 
 
+def test_photos_reply_to_on_album_and_single(monkeypatch, bot):
+    f = use(monkeypatch, {"sendMediaGroup": [ok([{"message_id": 11}, {"message_id": 12}])],
+                          "sendPhoto": [ok({"message_id": 3})]})
+    assert bot.photos("cap", ["a", "b"], reply_to=5) == 11
+    assert f.calls[0][1]["reply_to_message_id"] == 5
+    assert bot.photos("cap", ["a"], reply_to=6) == 3
+    assert f.calls[1][1]["reply_to_message_id"] == 6
+
+
+def test_photos_without_reply_to_omits_field(monkeypatch, bot):
+    f = use(monkeypatch, {"sendMediaGroup": [ok([{"message_id": 11}, {"message_id": 12}])]})
+    bot.photos("cap", ["a", "b"])
+    assert "reply_to_message_id" not in f.calls[0][1]
+
+
+def test_photos_fallback_keeps_reply_to(monkeypatch, bot):
+    f = use(monkeypatch, {"sendPhoto": [err("Bad Request: failed to get HTTP URL content")],
+                          "sendMessage": [ok({"message_id": 3})]})
+    bot.photos("cap", ["a"], reply_to=5)
+    assert f.calls[1][1]["reply_to_message_id"] == 5
+
+
 def test_edit_photo_caption_after_text_refusal(monkeypatch, bot):
     f = use(monkeypatch, {"editMessageText": [err("Bad Request: there is no text in the message to edit")],
                           "editMessageCaption": [ok(True)]})
@@ -111,6 +133,18 @@ def test_group_chunks_by_ten(monkeypatch, bot):
     f = use(monkeypatch, {"sendMediaGroup": [ok([{"message_id": i} for i in range(10)])], "sendDocument": [ok({"message_id": 99})]})
     ids = bot.group("document", [(f"f{i}", b"x") for i in range(11)], caption="c")
     assert [c[0] for c in f.calls] == ["sendMediaGroup", "sendDocument"] and ids[-1] == 99
+
+
+def test_group_reply_to_on_every_chunk(monkeypatch, bot):
+    f = use(monkeypatch, {"sendMediaGroup": [ok([{"message_id": i} for i in range(10)])], "sendDocument": [ok({"message_id": 99})]})
+    bot.group("document", [(f"f{i}", b"x") for i in range(11)], reply_to=5)
+    assert [c[1]["reply_to_message_id"] for c in f.calls] == [5, 5]
+
+
+def test_group_without_reply_to_omits_field(monkeypatch, bot):
+    f = use(monkeypatch, {"sendMediaGroup": [ok([{"message_id": i} for i in range(2)])]})
+    bot.group("document", [("a", b"x"), ("b", b"y")])
+    assert "reply_to_message_id" not in f.calls[0][1]
 
 
 def test_no_chat_raises():

@@ -83,10 +83,12 @@ class Bot:
     def reply(self, message_id: int, text: str, silent: bool = False, chat_id=None) -> int:
         return self.send(text, chat_id=chat_id, reply_to=message_id, silent=silent)
 
-    def photos(self, caption: str, photos: List[str], silent: bool = False, chat_id=None) -> int:
+    def photos(self, caption: str, photos: List[str], silent: bool = False, chat_id=None,
+               reply_to: Optional[int] = None) -> int:
         """1-10 photos by URL or file_id as one post, the caption on the first. If Telegram cannot fetch an image
-        the post falls back to plain text. Returns the id of the first message."""
-        common = dict(chat_id=self._chat(chat_id), disable_notification=_silent(silent))
+        the post falls back to plain text. `reply_to` answers that message. Returns the id of the first message."""
+        extra = {"reply_to_message_id": reply_to} if reply_to else {}
+        common = dict(chat_id=self._chat(chat_id), disable_notification=_silent(silent), **extra)
         try:
             if len(photos) >= 2:
                 media = [{"type": "photo", "media": p} for p in photos[:10]]
@@ -96,20 +98,22 @@ class Bot:
                 return self.call("sendPhoto", photo=photos[0], caption=caption, parse_mode="HTML", **common)["message_id"]
         except TelegramError as e:
             log.warning("photo post failed (%s), falling back to text", e)
-        return self.send(caption, chat_id=chat_id, silent=silent, preview=True)
+        return self.send(caption, chat_id=chat_id, reply_to=reply_to, silent=silent, preview=True)
 
     def group(self, kind: str, items: List[Tuple[str, object]], caption: str = "", silent: bool = False,
-              chat_id=None, timeout: int = 600) -> List[int]:
+              chat_id=None, timeout: int = 600, reply_to: Optional[int] = None) -> List[int]:
         """Upload photos or documents (kind="photo"|"document"), 10 per media group; a group cannot mix kinds.
-        `items` = (file name, bytes or open file). The caption rides on the first item. Returns all message ids."""
+        `items` = (file name, bytes or open file). The caption rides on the first item, `reply_to` answers that
+        message. Returns all message ids."""
         chat = self._chat(chat_id)
+        extra = {"reply_to_message_id": reply_to} if reply_to else {}
         ids: List[int] = []
         for n in range(0, len(items), 10):
             chunk = items[n:n + 10]
             cap = {"caption": caption, "parse_mode": "HTML"} if n == 0 and caption else {}
             if len(chunk) == 1:
                 res = self.call({"photo": "sendPhoto", "document": "sendDocument"}[kind], files={kind: chunk[0]},
-                                timeout=timeout, chat_id=chat, disable_notification=_silent(silent), **cap)
+                                timeout=timeout, chat_id=chat, disable_notification=_silent(silent), **cap, **extra)
                 ids.append(res["message_id"])
                 continue
             files, media = {}, []
@@ -117,7 +121,7 @@ class Bot:
                 files[f"f{i}"] = it
                 media.append({"type": kind, "media": f"attach://f{i}", **(cap if i == 0 else {})})
             res = self.call("sendMediaGroup", files=files, timeout=timeout, chat_id=chat,
-                            media=json.dumps(media), disable_notification=_silent(silent))
+                            media=json.dumps(media), disable_notification=_silent(silent), **extra)
             ids += [m["message_id"] for m in res]
         return ids
 

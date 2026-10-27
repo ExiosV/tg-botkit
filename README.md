@@ -42,6 +42,10 @@ time; do not vendor otherwise.
 
 ## Changelog
 
+### 0.3.0
+- `photos()` and `group()` accept an optional `reply_to` message id, so a photo/album/media group can answer a
+  message inside a channel discussion thread (same `reply_to_message_id` field as `send()`)
+
 ### 0.2.0
 - Added `Telegraph` client for telegra.ph API (create/edit pages, get page list)
 - Added `TelegraphError` for API failures
